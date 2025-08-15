@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KrishiSetu - System Architecture Diagram</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .architecture {
+            padding: 40px;
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 30px;
+            min-height: 800px;
+        }
+
+        .layer {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .layer-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #2c3e50;
+            text-align: center;
+            padding: 15px;
+            background: #ecf0f1;
+            border-radius: 10px;
+            border-left: 5px solid #3498db;
+        }
+
+        .component {
+            background: white;
+            border: 2px solid #bdc3c7;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .component:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            border-color: #3498db;
+        }
+
+        .component h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .component p {
+            color: #7f8c8d;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+
+        .component ul {
+            margin-top: 10px;
+            padding-left: 20px;
+        }
+
+        .component li {
+            color: #34495e;
+            font-size: 0.85em;
+            margin-bottom: 5px;
+        }
+
+        .api-layer {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+        }
+
+        .api-layer .component {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.3);
+            color: white;
+        }
+
+        .api-layer .component h3 {
+            color: white;
+        }
+
+        .api-layer .component p,
+        .api-layer .component li {
+            color: rgba(255,255,255,0.9);
+        }
+
+        .core-layer {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            color: white;
+        }
+
+        .core-layer .component {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.3);
+            color: white;
+        }
+
+        .core-layer .component h3 {
+            color: white;
+        }
+
+        .core-layer .component p,
+        .core-layer .component li {
+            color: rgba(255,255,255,0.9);
+        }
+
+        .data-layer {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            color: white;
+        }
+
+        .data-layer .component {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.3);
+            color: white;
+        }
+
+        .data-layer .component h3 {
+            color: white;
+        }
+
+        .data-layer .component p,
+        .data-layer .component li {
+            color: rgba(255,255,255,0.9);
+        }
+
+        .flow-arrows {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2em;
+            color: #3498db;
+            z-index: 10;
+        }
+
+        .data-flow {
+            grid-column: 1 / -1;
+            background: #ecf0f1;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .data-flow h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .flow-steps {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .flow-step {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            flex: 1;
+            min-width: 150px;
+            text-align: center;
+            border-left: 4px solid #3498db;
+        }
+
+        .flow-step h4 {
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .flow-step p {
+            color: #7f8c8d;
+            font-size: 0.85em;
+        }
+
+        .arrow {
+            font-size: 1.5em;
+            color: #3498db;
+            margin: 0 10px;
+        }
+
+        .features {
+            background: #f8f9fa;
+            padding: 30px;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .features h2 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .feature {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-left: 4px solid #3498db;
+        }
+
+        .feature h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .feature ul {
+            padding-left: 20px;
+        }
+
+        .feature li {
+            color: #34495e;
+            margin-bottom: 5px;
+        }
+
+        @media (max-width: 1200px) {
+            .architecture {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .flow-steps {
+                flex-direction: column;
+            }
+            
+            .arrow {
+                transform: rotate(90deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌾 KrishiSetu</h1>
+            <p>Agricultural AI Advisor - System Architecture</p>
+        </div>
+
+        <div class="architecture">
+            <!-- API Layer -->
+            <div class="layer api-layer">
+                <div class="layer-title">🌐 API Layer</div>
+                
+                <div class="component">
+                    <h3>FastAPI Server</h3>
+                    <p>High-performance REST API server</p>
+                    <ul>
+                        <li>Async request handling</li>
+                        <li>CORS middleware</li>
+                        <li>Auto-generated docs</li>
+                        <li>Request validation</li>
+                    </ul>
+                </div>
+
+                <div class="component">
+                    <h3>API Endpoints</h3>
+                    <ul>
+                        <li>POST /query - Main query processor</li>
+                        <li>POST /query/weather - Weather queries</li>
+                        <li>POST /query/crop - Crop queries</li>
+                        <li>POST /query/finance - Finance queries</li>
+                        <li>GET /agents - List agents</li>
+                        <li>GET /examples - Example queries</li>
+                    </ul>
+                </div>
+
+                <div class="component">
+                    <h3>Request/Response Models</h3>
+                    <ul>
+                        <li>QueryRequest - Input validation</li>
+                        <li>QueryResponse - Structured output</li>
+                        <li>UserProfile - User management</li>
+                        <li>HealthResponse - System status</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Core Layer -->
+            <div class="layer core-layer">
+                <div class="layer-title">🤖 Core AI Layer</div>
+                
+                <div class="component">
+                    <h3>Agricultural Crew</h3>
+                    <p>CrewAI orchestration layer</p>
+                    <ul>
+                        <li>Multi-agent coordination</li>
+                        <li>Task management</li>
+                        <li>Response synthesis</li>
+                        <li>Confidence scoring</li>
+                    </ul>
+                </div>
+
+                <div class="component">
+                    <h3>Weather Agent</h3>
+                    <p>Weather analysis & irrigation</p>
+                    <ul>
+                        <li>Current weather data</li>
+                        <li>Forecast analysis</li>
+                        <li>Irrigation recommendations</li>
+                        <li>Soil moisture analysis</li>
+                    </ul>
+                </div>
+
+                <div class="component">
+                    <h3>Crop Agent</h3>
+                    <p>Crop selection & management</p>
+                    <ul>
+                        <li>Crop recommendations</li>
+                        <li>Suitability analysis</li>
+                        <li>Market price data</li>
+                        <li>Pest risk assessment</li>
+                    </ul>
+                </div>
+
+                <div class="component">
+                    <h3>Finance Agent</h3>
+                    <p>Financial advisory services</p>
+                    <ul>
+                        <li>Loan options</li>
+                        <li>Government schemes</li>
+                        <li>Insurance information</li>
+                        <li>Market trends</li>
+                    </ul>
+                </div>
+
+                <div class="component">
+                    <h3>Language Processor</h3>
+                    <p>Multilingual support</p>
+                    <ul>
+                        <li>Language detection</li>
+                        <li>Query classification</li>
+                        <li>Context extraction</li>
+                        <li>Translation support</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Data Layer -->
+            <div class="layer data-layer">
+                <div class="layer-title">💾 Data Layer</div>
+                
+                <div class="component">
+                    <h3>MCP Client</h3>
+                    <p>Model Context Protocol</p>
+                    <ul>
+                        <li>External data integration</li>
+                        <li>Weather API calls</li>
+                        <li>Market data retrieval</li>
+                        <li>Government data access</li>
+                    </ul>
+                </div>
+
+                <div class="component">
+                    <h3>Database Models</h3>
+                    <p>SQLAlchemy ORM</p>
+                    <ul>
+                        <li>User profiles</li>
+                        <li>Query history</li>
+                        <li>Weather data</li>
+                        <li>Crop information</li>
+                        <li>Policy data</li>
+                    </ul>
+                </div>
+
+                <div class="component">
+                    <h3>External APIs</h3>
+                    <ul>
+                        <li>OpenWeatherMap API</li>
+                        <li>Government data APIs</li>
+                        <li>Market price APIs</li>
+                        <li>OpenAI API</li>
+                        <li>Tavily Search API</li>
+                    </ul>
+                </div>
+
+                <div class="component">
+                    <h3>Configuration</h3>
+                    <p>System configuration</p>
+                    <ul>
+                        <li>API keys management</li>
+                        <li>Database settings</li>
+                        <li>Supported languages</li>
+                        <li>Crop & soil types</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="data-flow">
+            <h3>🔄 Data Flow Architecture</h3>
+            <div class="flow-steps">
+                <div class="flow-step">
+                    <h4>1. User Query</h4>
+                    <p>Natural language input in multiple languages</p>
+                </div>
+                <div class="arrow">→</div>
+                <div class="flow-step">
+                    <h4>2. Language Processing</h4>
+                    <p>Language detection & context extraction</p>
+                </div>
+                <div class="arrow">→</div>
+                <div class="flow-step">
+                    <h4>3. Agent Selection</h4>
+                    <p>Route to appropriate AI agent(s)</p>
+                </div>
+                <div class="arrow">→</div>
+                <div class="flow-step">
+                    <h4>4. Data Retrieval</h4>
+                    <p>Fetch real-time data via MCP</p>
+                </div>
+                <div class="arrow">→</div>
+                <div class="flow-step">
+                    <h4>5. AI Processing</h4>
+                    <p>CrewAI orchestration & analysis</p>
+                </div>
+                <div class="arrow">→</div>
+                <div class="flow-step">
+                    <h4>6. Response Synthesis</h4>
+                    <p>Combine insights & generate recommendations</p>
+                </div>
+                <div class="arrow">→</div>
+                <div class="flow-step">
+                    <h4>7. API Response</h4>
+                    <p>Structured JSON response with confidence scores</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="features">
+            <h2>🚀 Key System Features</h2>
+            <div class="features-grid">
+                <div class="feature">
+                    <h3>🌍 Multilingual Support</h3>
+                    <ul>
+                        <li>10 Indian languages supported</li>
+                        <li>Automatic language detection</li>
+                        <li>Localized agricultural terminology</li>
+                        <li>Cultural context awareness</li>
+                    </ul>
+                </div>
+
+                <div class="feature">
+                    <h3>🤖 Multi-Agent Architecture</h3>
+                    <ul>
+                        <li>Specialized domain agents</li>
+                        <li>CrewAI orchestration</li>
+                        <li>Coordinated responses</li>
+                        <li>Confidence scoring</li>
+                    </ul>
+                </div>
+
+                <div class="feature">
+                    <h3>📊 Real-time Data Integration</h3>
+                    <ul>
+                        <li>Weather data from OpenWeatherMap</li>
+                        <li>Government agricultural data</li>
+                        <li>Market price information</li>
+                        <li>MCP protocol integration</li>
+                    </ul>
+                </div>
+
+                <div class="feature">
+                    <h3>🎯 Context-Aware Processing</h3>
+                    <ul>
+                        <li>Location-based recommendations</li>
+                        <li>Crop-specific advice</li>
+                        <li>Farmer type consideration</li>
+                        <li>Seasonal adjustments</li>
+                    </ul>
+                </div>
+
+                <div class="feature">
+                    <h3>🔧 Extensible Architecture</h3>
+                    <ul>
+                        <li>Modular agent system</li>
+                        <li>Plugin-based data sources</li>
+                        <li>Configurable workflows</li>
+                        <li>Easy integration capabilities</li>
+                    </ul>
+                </div>
+
+                <div class="feature">
+                    <h3>📱 Accessibility Features</h3>
+                    <ul>
+                        <li>Low digital literacy support</li>
+                        <li>Voice-friendly responses</li>
+                        <li>Offline capability considerations</li>
+                        <li>Mobile-optimized API</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 
