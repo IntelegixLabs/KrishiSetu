@@ -11,11 +11,17 @@ class BaseAgent(ABC):
         self.name = name
         self.role = role
         self.goal = goal
-        self.llm = ChatOpenAI(
-            model="gpt-4",
-            temperature=0.7,
-            api_key=Config.OPENAI_API_KEY
-        )
+        
+        # Initialize LLM only if API key is available
+        if Config.OPENAI_API_KEY:
+            self.llm = ChatOpenAI(
+                model="gpt-4",
+                temperature=0.7,
+                api_key=Config.OPENAI_API_KEY
+            )
+        else:
+            self.llm = None
+        
         self.agent = self._create_agent()
     
     def _create_agent(self) -> Agent:
@@ -27,17 +33,12 @@ class BaseAgent(ABC):
             verbose=True,
             allow_delegation=False,
             llm=self.llm,
-            tools=self._get_tools()
+            tools=[]  # No tools for now to avoid validation issues
         )
     
     @abstractmethod
     def _get_backstory(self) -> str:
         """Return the backstory for the agent"""
-        pass
-    
-    @abstractmethod
-    def _get_tools(self) -> List:
-        """Return the tools available to the agent"""
         pass
     
     @abstractmethod

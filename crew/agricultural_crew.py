@@ -16,10 +16,15 @@ class AgriculturalCrew:
     async def process_comprehensive_query(self, query: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
         """Process a comprehensive agricultural query using multiple agents"""
         
-        # Initialize MCP data provider
-        await self.mcp_provider.initialize()
-        
         try:
+            # Initialize MCP data provider
+            await self.mcp_provider.initialize()
+            
+            # Check if LLM is available
+            if self.weather_agent.llm is None:
+                # Fallback to direct agent processing without CrewAI
+                return await self._process_without_crew(query, context)
+            
             # Create tasks for different aspects
             weather_task = Task(
                 description=f"Analyze weather conditions and provide irrigation advice for: {query}",
@@ -85,6 +90,49 @@ class AgriculturalCrew:
             }
         finally:
             await self.mcp_provider.close()
+    
+    async def _process_without_crew(self, query: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Process query without CrewAI when LLM is not available"""
+        try:
+            # Get insights from individual agents
+            weather_insight = self.weather_agent.process_query(query, context)
+            crop_insight = self.crop_agent.process_query(query, context)
+            finance_insight = self.finance_agent.process_query(query, context)
+            
+            # Get MCP data
+            location = context.get('location', 'Mumbai') if context else 'Mumbai'
+            crop = context.get('crop_type', 'general') if context else 'general'
+            state = context.get('state', 'Maharashtra') if context else 'Maharashtra'
+            
+            mcp_data = await self.mcp_provider.get_comprehensive_data(location, crop, state)
+            
+            # Synthesize response
+            comprehensive_response = {
+                "crew_result": "Direct agent processing (no LLM available)",
+                "mcp_data": mcp_data,
+                "agent_insights": {
+                    "weather": weather_insight,
+                    "crop": crop_insight,
+                    "finance": finance_insight
+                },
+                "recommendations": self._synthesize_recommendations("Direct processing", mcp_data),
+                "timestamp": asyncio.get_event_loop().time()
+            }
+            
+            return {
+                "success": True,
+                "data": comprehensive_response,
+                "confidence": self._calculate_overall_confidence(comprehensive_response),
+                "source": "Agricultural Crew (Direct Processing)"
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "confidence": 0.0,
+                "source": "Agricultural Crew"
+            }
     
     async def _get_agent_insight(self, agent, query: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """Get specific insights from individual agents"""

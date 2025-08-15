@@ -22,15 +22,6 @@ class FinanceAgent(BaseAgent):
         subsidies, insurance, and market opportunities. You have deep knowledge of both 
         government and private sector financial products for agriculture."""
     
-    def _get_tools(self) -> List:
-        return [
-            self.get_loan_options,
-            self.get_government_schemes,
-            self.analyze_market_trends,
-            self.get_insurance_options,
-            self.calculate_loan_eligibility
-        ]
-    
     def _get_keywords(self) -> List[str]:
         return [
             "loan", "credit", "finance", "money", "bank", "scheme", "subsidy",

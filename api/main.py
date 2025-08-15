@@ -26,8 +26,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize agricultural crew
-agricultural_crew = AgriculturalCrew()
+# Initialize agricultural crew with error handling
+try:
+    agricultural_crew = AgriculturalCrew()
+    crew_available = True
+except Exception as e:
+    print(f"Warning: Agricultural crew initialization failed: {e}")
+    agricultural_crew = None
+    crew_available = False
 
 # Pydantic models for request/response
 class QueryRequest(BaseModel):
@@ -55,6 +61,7 @@ class HealthResponse(BaseModel):
     status: str
     timestamp: str
     version: str
+    crew_status: str
 
 @app.on_event("startup")
 async def startup_event():
@@ -68,13 +75,17 @@ async def root():
     return HealthResponse(
         status="healthy",
         timestamp=datetime.now().isoformat(),
-        version="1.0.0"
+        version="1.0.0",
+        crew_status="available" if crew_available else "unavailable"
     )
 
 @app.post("/query", response_model=QueryResponse)
 async def process_query(request: QueryRequest):
     """Process agricultural queries using AI agents"""
     try:
+        if not crew_available:
+            raise HTTPException(status_code=503, detail="Agricultural crew is not available")
+        
         if request.comprehensive:
             # Use full crew for comprehensive analysis
             result = await agricultural_crew.process_comprehensive_query(
@@ -155,7 +166,8 @@ async def list_agents():
                 "capabilities": ["Loan options", "Government schemes", "Market trends"],
                 "keywords": ["loan", "credit", "scheme", "subsidy", "insurance"]
             }
-        ]
+        ],
+        "crew_status": "available" if crew_available else "unavailable"
     }
 
 @app.get("/supported-languages")
