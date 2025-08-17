@@ -1,7 +1,10 @@
-from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, UploadFile, File, Form
+from fastapi.responses import StreamingResponse
+import io
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Dict, Any, Optional, List
+import re
 import asyncio
 import json
 from datetime import datetime
@@ -9,6 +12,15 @@ from datetime import datetime
 from crew.agricultural_crew import AgriculturalCrew
 from models.database import create_tables, get_db
 from config import Config
+from utils.reporting import (
+    build_report_dict,
+    build_csv_bytes,
+    build_excel_bytes,
+    build_pdf_bytes,
+)
+from utils.document_parser import extract_texts_from_uploads
+from openai import OpenAI
+from schema import AgriculturalAnalysis
 
 # Create FastAPI app
 app = FastAPI(
@@ -63,6 +75,19 @@ class HealthResponse(BaseModel):
     version: str
     crew_status: str
 
+class ReportRequest(BaseModel):
+    query: str
+    context: Optional[Dict[str, Any]] = None
+    comprehensive: bool = True
+    language: str = "en"
+    format: str = "csv"  # csv | excel | pdf
+
+class ChatResponse(BaseModel):
+    success: bool
+    analysis: AgriculturalAnalysis
+    # raw_documents: Optional[List[Dict[str, Any]]] = None
+    # timestamp: str
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize database and services on startup"""
@@ -104,6 +129,157 @@ async def process_query(request: QueryRequest):
         
         return QueryResponse(**result)
         
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/report")
+async def generate_report(request: ReportRequest):
+    """Generate an agriculture report in CSV, Excel, or PDF."""
+    try:
+        if not crew_available:
+            raise HTTPException(status_code=503, detail="Agricultural crew is not available")
+
+        # Get analysis result
+        if request.comprehensive:
+            result = await agricultural_crew.process_comprehensive_query(
+                request.query,
+                request.context,
+            )
+        else:
+            result = await agricultural_crew.process_simple_query(
+                request.query,
+                request.context,
+            )
+
+        # Build normalized report data
+        report_dict = build_report_dict(
+            request.query,
+            request.context or {},
+            result,
+            request.language,
+        )
+
+        fmt = (request.format or "csv").lower()
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        if fmt == "csv":
+            data_bytes = build_csv_bytes(report_dict)
+            media_type = "text/csv"
+            filename = f"krishisetu_report_{ts}.csv"
+        elif fmt in ("xlsx", "excel"):
+            data_bytes = build_excel_bytes(report_dict)
+            media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            filename = f"krishisetu_report_{ts}.xlsx"
+        elif fmt == "pdf":
+            data_bytes = build_pdf_bytes(report_dict)
+            media_type = "application/pdf"
+            filename = f"krishisetu_report_{ts}.pdf"
+        else:
+            raise HTTPException(status_code=400, detail="Invalid format. Use csv, excel, or pdf.")
+
+        return StreamingResponse(
+            io.BytesIO(data_bytes),
+            media_type=media_type,
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            },
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/chat", response_model=ChatResponse)
+async def chat_route(
+    text: str = Form(...),
+    files: Optional[List[UploadFile]] = File(None),
+    language: str = Form("en"),
+):
+    """Accept text and optional documents (pdf, csv, docx, xlsx, etc),
+    extract their content via MarkItDown, analyze with OpenAI, and return
+    a structured agricultural report as strict JSON matching our schema.
+    """
+    try:
+        # Extract documents
+        extracted: List[Dict[str, Any]] = []
+        if files:
+            pairs = await extract_texts_from_uploads(files)
+            for name, content in pairs:
+                extracted.append({"filename": name, "content": content})
+
+        # Compose prompt
+        sys_prompt = (
+            "You are an agricultural expert. Analyze the user's request and the attached documents to produce "
+            "a structured, practical, and clinically accurate advisory report."
+        )
+        format_instructions = (
+            "Output STRICT JSON only (no markdown, no code fences). The JSON MUST match this schema: "
+            "{ soil: { type, ph:{average,range}, moisture_percentage:{average,range}, organic_carbon_percentage:{average,range}, "
+            "nutrients:{ nitrogen_kg_per_ha:{average,range}, phosphorus_kg_per_ha:{average,range}, potassium_kg_per_ha:{average,range} } }, "
+            "crop:{ types: string[], season: string, growth_stages: string[] }, "
+            "weather:{ temperature_c:{average,range}, humidity_pct:{average,range}, rainfall_mm:{ last_24h:{average,range}, forecast_24h:{average,range} }, wind_speed_mps:{average,range} }, "
+            "finance:{ market_price_inr_per_quintal:{average,range}, market_trend: string, applicable_schemes: string[] }, "
+            "risks:{ pest_risk:{ average: string, notable_risks: string[] }, irrigation_need:{ average: string, specific_needs: string[] } }, "
+            "recommendations:{ irrigation:{ general: string, specific: [{crop:string, action:string}] }, crop_management:{ general: string, specific: [{crop:string, action:string}] } }, "
+            "summary: string }"
+        )
+
+        doc_block = "\n\n".join(
+            [f"FILE: {d['filename']}\nCONTENT:\n{d['content'][:8000]}" for d in extracted]
+        )
+        user_block = f"User Input:\n{text}\n\nDocuments:\n{doc_block}"
+
+        # Call OpenAI
+        client = OpenAI()
+        completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": sys_prompt},
+                {"role": "system", "content": format_instructions},
+                {"role": "user", "content": user_block},
+            ],
+            temperature=0.4,
+        )
+
+        content = completion.choices[0].message.content if completion.choices else "{}"
+
+        # Extract pure JSON from model output (strip code fences if present)
+        def extract_json(text: str) -> str:
+            if not text:
+                return "{}"
+            fence_match = re.search(r"```(?:json)?\n([\s\S]*?)```", text, re.IGNORECASE)
+            if fence_match:
+                return fence_match.group(1).strip()
+            # If looks like JSON already
+            start = text.find("{")
+            end = text.rfind("}")
+            if start != -1 and end != -1 and end > start:
+                return text[start:end + 1]
+            return text
+
+        json_text = extract_json(content)
+
+        try:
+            raw_obj = json.loads(json_text)
+        except Exception:
+            # As a final fallback, wrap in summary
+            raw_obj = {"summary": content}
+
+        # Validate and coerce using schema
+        try:
+            analysis_model = AgriculturalAnalysis.model_validate(raw_obj)
+        except Exception as e:
+            # If validation fails, raise a 422-like error with message for debugging
+            raise HTTPException(status_code=422, detail=f"Response did not match schema: {e}")
+
+        return ChatResponse(
+            success=True,
+            analysis=analysis_model,
+            # raw_documents=extracted,
+            # timestamp=datetime.now().isoformat(),
+        )
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
